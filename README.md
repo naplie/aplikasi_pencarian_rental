@@ -1,4 +1,4 @@
-aplikasi pencarian rental playstation
+direktori rental PS
 
 fitur untuk owner:
 registrasi dan login
