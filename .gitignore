@@ -1,3 +1,7 @@
-uploads/
+
+*.sql
+data_base/
+
+
 akun_infinityfree.txt
 website_tugas.zip
