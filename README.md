@@ -10,5 +10,5 @@ Melihat detail dari tempat rental yang mencakup jadwal, unit konsol, daftar harg
 Navigasi rute langsung ke tempat rental dengan google map direction URL
 
 Teknologi yang digunakan:
-PHP, MYSQL, HTML, CSS, BOOTSTRAP, leaflet.js, openstreetmap, google map direction URL
+PHP, MYSQL, HTML, CSS, BOOTSTRAP, leaflet.js, openstreetmap
 
