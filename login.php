@@ -6,10 +6,14 @@ require_once 'Models.php';
 $pesan = '';
 
 if (isset($_POST['login'])) {
-    $objOwner = new Owner($pdo); // Instansiasi Object
+    $objOwner = new Owner($pdo);
     try {
         if ($objOwner->login(trim($_POST['email']), $_POST['password'])) {
-            header("Location: dashboard.php");
+            if (($_SESSION['role'] ?? 'owner') === 'admin') {
+                header("Location: admin.php");
+            } else {
+                header("Location: dashboard.php");
+            }
             exit();
         }
     } catch (Exception $e) {

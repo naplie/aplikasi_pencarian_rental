@@ -703,9 +703,7 @@ body:not(.home-page):not(.detail-page) .mt-16 {
   margin-top: 16px;
 }
 
-/* =========================================================
-   RESPONSIF TABLET & HP
-   ========================================================= */
+/* RESPONSIF TABLET & HP */
 @media (max-width: 991.98px) {
   .split-wrapper {
     flex-direction: column-reverse;
@@ -714,8 +712,16 @@ body:not(.home-page):not(.detail-page) .mt-16 {
   }
 
   .map-panel {
-    height: 320px;
+    flex: none;
     width: 100%;
+    height: 320px;
+    min-height: 320px;
+    z-index: 1;
+  }
+
+  .map-panel #map {
+    width: 100%;
+    height: 320px;
   }
 
   .rental-sidebar {

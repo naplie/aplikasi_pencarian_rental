@@ -65,6 +65,7 @@ class Owner extends BaseModel {
         $_SESSION['owner_id']    = $user['owner_id'];
         $_SESSION['owner_name']  = $user['name'];
         $_SESSION['owner_email'] = $user['email'];
+        $_SESSION['role']        = $user['role'] ?? 'owner';
         return true;
     }
 
@@ -581,5 +582,64 @@ class rating_tempat extends BaseModel {
 
         $avgRating = round((float)$ratingData['avg_rating'], 1);
         return "Rating rata-rata: {$avgRating} dari {$totalReviews} ulasan.";
+    }
+}
+
+// Child class: Admin (Inheritance dari BaseModel)
+class Admin extends BaseModel {
+    public function __construct($pdo_connect) {
+        parent::__construct($pdo_connect, 'Panel Admin');
+    }
+
+    public function getSemuaRental() {
+        $stmt = $this->pdo->query("
+            SELECT r.rental_id, r.rental_name, r.status_toko,
+                   o.name AS owner_name, o.email AS owner_email, l.address
+            FROM rentals r
+            JOIN owners o ON r.owner_id = o.owner_id
+            LEFT JOIN locations l ON r.rental_id = l.rental_id
+            ORDER BY r.rental_id DESC
+        ");
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function hapusRental($rental_id) {
+        try {
+            $this->pdo->beginTransaction();
+
+            // Hapus data turunan terlebih dahulu agar aman dari foreign key constraint
+            $this->pdo->prepare("
+                DELETE rr FROM rental_rates rr
+                JOIN rental_consoles rc ON rr.rental_console_id = rc.rental_console_id
+                WHERE rc.rental_id = ?
+            ")->execute([$rental_id]);
+
+            $this->pdo->prepare("
+                DELETE rg FROM rental_games rg
+                JOIN rental_consoles rc ON rg.rental_console_id = rc.rental_console_id
+                WHERE rc.rental_id = ?
+            ")->execute([$rental_id]);
+
+            $this->pdo->prepare("DELETE FROM rental_consoles WHERE rental_id = ?")->execute([$rental_id]);
+            $this->pdo->prepare("DELETE FROM rental_schedules WHERE rental_id = ?")->execute([$rental_id]);
+            $this->pdo->prepare("DELETE FROM rental_photos WHERE rental_id = ?")->execute([$rental_id]);
+            $this->pdo->prepare("DELETE FROM locations WHERE rental_id = ?")->execute([$rental_id]);
+            $this->pdo->prepare("DELETE FROM rentals WHERE rental_id = ?")->execute([$rental_id]);
+
+            $this->pdo->commit();
+            return "<p style='color: #16a34a;'>Data tempat rental berhasil dihapus.</p>";
+        } catch (PDOException $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            return "<p style='color: #dc2626;'>Gagal menghapus rental: " . $e->getMessage() . "</p>";
+        }
+    }
+
+    // Override dari BaseModel (Polymorphism)
+    public function getRingkasan($id = 0) {
+        $totalOwner  = (int) $this->pdo->query("SELECT COUNT(*) FROM owners WHERE role = 'owner'")->fetchColumn();
+        $totalRental = (int) $this->pdo->query("SELECT COUNT(*) FROM rentals")->fetchColumn();
+        return "Total {$totalRental} tempat rental terdaftar dari {$totalOwner} akun owner.";
     }
 }
