@@ -9,6 +9,7 @@ $objRental  = new Rental($pdo);
 $objConsole = new ConsoleDanHarga($pdo);
 $objGame    = new Game($pdo);
 $objJadwal  = new JadwalBukaTutup($pdo);
+$objRating  = new rating_tempat($pdo);
 
 $rental = $rental_id > 0 ? $objRental->getDetailById($rental_id) : false;
 
@@ -16,6 +17,27 @@ if (!$rental) {
     header("Location: index.php");
     exit;
 }
+
+$pesan_rating = '';
+if (isset($_POST['kirim_rating'])) {
+    try {
+        $objRating->tambahRating(
+            $rental_id,
+            $_POST['reviewer_name'] ?? '',
+            $_POST['rating'] ?? 0,
+            $_POST['review_text'] ?? ''
+        );
+        header("Location: detail.php?id=" . $rental_id . "&rated=1#ulasan");
+        exit;
+    } catch (Exception $e) {
+        $pesan_rating = $e->getMessage();
+    }
+}
+
+$rating_info   = $objRating->getRating($rental_id);
+$avg_rating    = $rating_info && $rating_info['total_reviews'] > 0 ? round((float)$rating_info['avg_rating'], 1) : null;
+$total_reviews = (int)($rating_info['total_reviews'] ?? 0);
+$daftar_ulasan = $objRating->getDaftarUlasan($rental_id);
 
 $daftar_foto   = $objRental->getFoto($rental_id);
 $daftar_konsol = $objConsole->getDaftarConsole($rental_id);
@@ -33,12 +55,14 @@ foreach ($daftar_game as $g) {
 // Cari harga terendah per jam untuk ringkasan di header
 $harga_terendah = null;
 foreach ($daftar_harga as $h) {
-    $durasi = max(1, (int)$h['duration_hours']);
+    $durasi  = max(1, (int)$h['duration_hours']);
     $per_jam = (float)$h['price'] / $durasi;
     if ($harga_terendah === null || $per_jam < $harga_terendah) {
         $harga_terendah = $per_jam;
     }
 }
+
+$dashboard_url = (($_SESSION['role'] ?? '') === 'admin') ? 'admin.php' : 'dashboard.php';
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -240,7 +264,7 @@ foreach ($daftar_harga as $h) {
                     <i class="bi bi-arrow-left me-1"></i> Kembali
                 </a>
                 <?php if (isset($_SESSION['owner_id'])): ?>
-                    <a href="dashboard.php" class="btn btn-purple btn-sm">
+                    <a href="<?= $dashboard_url ?>" class="btn btn-purple btn-sm">
                         <i class="bi bi-speedometer2 me-1"></i> Dashboard
                     </a>
                 <?php else: ?>
@@ -293,6 +317,15 @@ foreach ($daftar_harga as $h) {
                                 Mulai <strong style="color:#6c63ff;">Rp<?= number_format($harga_terendah, 0, ',', '.') ?>/jam</strong>
                             </span>
                         <?php endif; ?>
+                        <span>
+                            <i class="bi bi-star-fill text-warning me-1"></i>
+                            <?php if ($avg_rating !== null): ?>
+                                <strong class="text-dark"><?= number_format($avg_rating, 1) ?></strong>
+                                (<?= $total_reviews ?> ulasan)
+                            <?php else: ?>
+                                <span>Belum ada rating</span>
+                            <?php endif; ?>
+                        </span>
                     </div>
                 </div>
 
@@ -482,6 +515,84 @@ foreach ($daftar_harga as $h) {
                         </div>
                     </section>
                 <?php endif; ?>
+
+                <!-- RATING & ULASAN PENGUNJUNG -->
+                <section class="detail-card p-4 mb-4" id="ulasan">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                        <h2 class="section-title mb-0">
+                            <i class="bi bi-star-fill text-warning"></i> Rating & Ulasan
+                        </h2>
+                        <?php if ($avg_rating !== null): ?>
+                            <span class="badge rounded-pill bg-warning-subtle text-dark border border-warning-subtle px-3 py-2">
+                                <i class="bi bi-star-fill text-warning me-1"></i>
+                                <?= number_format($avg_rating, 1) ?> / 5 (<?= $total_reviews ?> ulasan)
+                            </span>
+                        <?php endif; ?>
+                    </div>
+
+                    <?php if (isset($_GET['rated'])): ?>
+                        <div class="alert alert-success py-2 small rounded-3">
+                            Terima kasih! Ulasan dan rating kamu berhasil ditambahkan.
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($pesan_rating)): ?>
+                        <div class="alert alert-danger py-2 small rounded-3">
+                            <?= htmlspecialchars($pesan_rating) ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <form method="POST" action="detail.php?id=<?= $rental_id ?>#ulasan" class="p-3 rounded-3 mb-4" style="background:#f8f9fe; border:1px solid #e6e8f6;">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Nama Kamu</label>
+                                <input type="text" name="reviewer_name" class="form-control form-control-sm" placeholder="Contoh: Andi" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Beri Rating</label>
+                                <select name="rating" class="form-select form-select-sm" required>
+                                    <option value="5">★★★★★ (5 - Sangat Bagus)</option>
+                                    <option value="4">★★★★☆ (4 - Bagus)</option>
+                                    <option value="3">★★★☆☆ (3 - Cukup)</option>
+                                    <option value="2">★★☆☆☆ (2 - Kurang)</option>
+                                    <option value="1">★☆☆☆☆ (1 - Buruk)</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small fw-semibold">Ulasan <span class="text-muted fw-normal">(Opsional)</span></label>
+                                <textarea name="review_text" rows="2" class="form-control form-control-sm" placeholder="Bagaimana kenyamanan tempat, stik, atau gamenya?"></textarea>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" name="kirim_rating" class="btn btn-purple btn-sm">
+                                    <i class="bi bi-send-fill me-1"></i> Kirim Ulasan
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <?php if (empty($daftar_ulasan)): ?>
+                        <p class="text-muted small mb-0">Belum ada ulasan. Jadilah yang pertama memberi rating tempat ini!</p>
+                    <?php else: ?>
+                        <div class="d-flex flex-column gap-3">
+                            <?php foreach ($daftar_ulasan as $u): ?>
+                                <div class="pb-3 border-bottom border-light-subtle">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <strong class="small"><?= htmlspecialchars($u['reviewer_name']) ?></strong>
+                                        <span class="text-warning small">
+                                            <?= str_repeat('★', (int)$u['rating']) . str_repeat('☆', 5 - (int)$u['rating']) ?>
+                                        </span>
+                                    </div>
+                                    <?php if (!empty($u['review_text'])): ?>
+                                        <p class="small text-secondary mb-1"><?= nl2br(htmlspecialchars($u['review_text'])) ?></p>
+                                    <?php endif; ?>
+                                    <small class="text-muted" style="font-size:0.75rem;">
+                                        <?= date('d M Y, H:i', strtotime($u['created_at'])) ?>
+                                    </small>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </section>
             </div>
 
             <!-- KOLOM KANAN: PETA & JADWAL -->

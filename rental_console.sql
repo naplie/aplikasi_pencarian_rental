@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 21, 2026 at 06:13 PM
+-- Generation Time: Nov 23, 2026 at 10:01 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -96,6 +96,7 @@ CREATE TABLE `owners` (
   `name` varchar(100) NOT NULL,
   `email` varchar(100) NOT NULL,
   `password` varchar(255) NOT NULL,
+  `role` enum('owner','admin') NOT NULL DEFAULT 'owner',
   `phone` varchar(20) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -104,8 +105,9 @@ CREATE TABLE `owners` (
 -- Dumping data for table `owners`
 --
 
-INSERT INTO `owners` (`owner_id`, `name`, `email`, `password`, `phone`, `created_at`) VALUES
-(10, 'admin', 'nepli6477@gmail.com', '$2y$10$QzIFnWtxvyQczgqKAiPz0uNlZD.ZKRYoAjy0tHFU.Ynl/j2nxb5eO', NULL, '2026-11-21 06:39:08');
+INSERT INTO `owners` (`owner_id`, `name`, `email`, `password`, `role`, `phone`, `created_at`) VALUES
+(10, 'admin', 'nepli6477@gmail.com', '$2y$10$QzIFnWtxvyQczgqKAiPz0uNlZD.ZKRYoAjy0tHFU.Ynl/j2nxb5eO', 'owner', NULL, '2026-11-21 06:39:08'),
+(12, 'admin', 'adminsuper@gmail.com', '$2y$10$.QurKQyRQpPs9XRR0ND9ROd8kKLB7VlqcgB4087JGZ66j2GsUDR/e', 'admin', NULL, '2026-11-23 07:24:54');
 
 -- --------------------------------------------------------
 
@@ -223,6 +225,21 @@ INSERT INTO `rental_rates` (`rate_id`, `rental_console_id`, `package_name`, `dur
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `rental_ratings`
+--
+
+CREATE TABLE `rental_ratings` (
+  `rating_id` int(11) NOT NULL,
+  `rental_id` int(11) NOT NULL,
+  `reviewer_name` varchar(100) NOT NULL,
+  `rating` tinyint(4) NOT NULL,
+  `review_text` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `rental_schedules`
 --
 
@@ -255,40 +272,40 @@ INSERT INTO `rental_schedules` (`schedule_id`, `rental_id`, `day_of_week`, `open
 --
 -- Indexes for table `consoles`
 --
-`consoles`
+ALTER TABLE `consoles`
   ADD PRIMARY KEY (`console_id`);
 
 --
 -- Indexes for table `games`
 --
-`games`
+ALTER TABLE `games`
   ADD PRIMARY KEY (`game_id`);
 
 --
 -- Indexes for table `locations`
 --
-`locations`
+ALTER TABLE `locations`
   ADD PRIMARY KEY (`location_id`),
   ADD UNIQUE KEY `rental_id` (`rental_id`);
 
 --
 -- Indexes for table `owners`
 --
-`owners`
+ALTER TABLE `owners`
   ADD PRIMARY KEY (`owner_id`),
   ADD UNIQUE KEY `email` (`email`);
 
 --
 -- Indexes for table `rentals`
 --
-`rentals`
+ALTER TABLE `rentals`
   ADD PRIMARY KEY (`rental_id`),
   ADD KEY `fk_rentals_owner` (`owner_id`);
 
 --
 -- Indexes for table `rental_consoles`
 --
-`rental_consoles`
+ALTER TABLE `rental_consoles`
   ADD PRIMARY KEY (`rental_console_id`),
   ADD UNIQUE KEY `uq_rental_console` (`rental_id`,`console_id`),
   ADD KEY `fk_rc_console` (`console_id`);
@@ -296,7 +313,7 @@ INSERT INTO `rental_schedules` (`schedule_id`, `rental_id`, `day_of_week`, `open
 --
 -- Indexes for table `rental_games`
 --
-`rental_games`
+ALTER TABLE `rental_games`
   ADD PRIMARY KEY (`rental_game_id`),
   ADD UNIQUE KEY `uq_console_game` (`rental_console_id`,`game_id`),
   ADD KEY `fk_rg_game` (`game_id`);
@@ -304,21 +321,28 @@ INSERT INTO `rental_schedules` (`schedule_id`, `rental_id`, `day_of_week`, `open
 --
 -- Indexes for table `rental_photos`
 --
-`rental_photos`
+ALTER TABLE `rental_photos`
   ADD PRIMARY KEY (`photo_id`),
   ADD KEY `fk_photos_rental` (`rental_id`);
 
 --
 -- Indexes for table `rental_rates`
 --
-`rental_rates`
+ALTER TABLE `rental_rates`
   ADD PRIMARY KEY (`rate_id`),
   ADD KEY `fk_rates_rc` (`rental_console_id`);
 
 --
+-- Indexes for table `rental_ratings`
+--
+ALTER TABLE `rental_ratings`
+  ADD PRIMARY KEY (`rating_id`),
+  ADD KEY `fk_rating_rental` (`rental_id`);
+
+--
 -- Indexes for table `rental_schedules`
 --
-`rental_schedules`
+ALTER TABLE `rental_schedules`
   ADD PRIMARY KEY (`schedule_id`),
   ADD UNIQUE KEY `uq_rental_day` (`rental_id`,`day_of_week`);
 
@@ -329,61 +353,67 @@ INSERT INTO `rental_schedules` (`schedule_id`, `rental_id`, `day_of_week`, `open
 --
 -- AUTO_INCREMENT for table `consoles`
 --
-`consoles`
+ALTER TABLE `consoles`
   MODIFY `console_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `games`
 --
-`games`
+ALTER TABLE `games`
   MODIFY `game_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `locations`
 --
-`locations`
+ALTER TABLE `locations`
   MODIFY `location_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `owners`
 --
-`owners`
-  MODIFY `owner_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+ALTER TABLE `owners`
+  MODIFY `owner_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `rentals`
 --
-`rentals`
+ALTER TABLE `rentals`
   MODIFY `rental_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `rental_consoles`
 --
-`rental_consoles`
+ALTER TABLE `rental_consoles`
   MODIFY `rental_console_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `rental_games`
 --
-`rental_games`
+ALTER TABLE `rental_games`
   MODIFY `rental_game_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `rental_photos`
 --
-`rental_photos`
+ALTER TABLE `rental_photos`
   MODIFY `photo_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `rental_rates`
 --
-`rental_rates`
+ALTER TABLE `rental_rates`
   MODIFY `rate_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `rental_ratings`
+--
+ALTER TABLE `rental_ratings`
+  MODIFY `rating_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `rental_schedules`
 --
-`rental_schedules`
+ALTER TABLE `rental_schedules`
   MODIFY `schedule_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
@@ -393,46 +423,52 @@ INSERT INTO `rental_schedules` (`schedule_id`, `rental_id`, `day_of_week`, `open
 --
 -- Constraints for table `locations`
 --
-`locations`
-`fk_locations_rental` (`rental_id`) REFERENCES `rentals` (`rental_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `locations`
+  ADD CONSTRAINT `fk_locations_rental` FOREIGN KEY (`rental_id`) REFERENCES `rentals` (`rental_id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Constraints for table `rentals`
 --
-`rentals`
-`fk_rentals_owner` (`owner_id`) REFERENCES `owners` (`owner_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `rentals`
+  ADD CONSTRAINT `fk_rentals_owner` FOREIGN KEY (`owner_id`) REFERENCES `owners` (`owner_id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Constraints for table `rental_consoles`
 --
-`rental_consoles`
-`fk_rc_console` (`console_id`) REFERENCES `consoles` (`console_id`) ON DELETE CASCADE ON UPDATE CASCADE,
-`fk_rc_rental` (`rental_id`) REFERENCES `rentals` (`rental_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `rental_consoles`
+  ADD CONSTRAINT `fk_rc_console` FOREIGN KEY (`console_id`) REFERENCES `consoles` (`console_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_rc_rental` FOREIGN KEY (`rental_id`) REFERENCES `rentals` (`rental_id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Constraints for table `rental_games`
 --
-`rental_games`
-`fk_rg_console` (`rental_console_id`) REFERENCES `rental_consoles` (`rental_console_id`) ON DELETE CASCADE,
-`fk_rg_game` (`game_id`) REFERENCES `games` (`game_id`) ON DELETE CASCADE;
+ALTER TABLE `rental_games`
+  ADD CONSTRAINT `fk_rg_console` FOREIGN KEY (`rental_console_id`) REFERENCES `rental_consoles` (`rental_console_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_rg_game` FOREIGN KEY (`game_id`) REFERENCES `games` (`game_id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `rental_photos`
 --
-`rental_photos`
-`fk_photos_rental` (`rental_id`) REFERENCES `rentals` (`rental_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `rental_photos`
+  ADD CONSTRAINT `fk_photos_rental` FOREIGN KEY (`rental_id`) REFERENCES `rentals` (`rental_id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Constraints for table `rental_rates`
 --
-`rental_rates`
-`fk_rates_rc` (`rental_console_id`) REFERENCES `rental_consoles` (`rental_console_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `rental_rates`
+  ADD CONSTRAINT `fk_rates_rc` FOREIGN KEY (`rental_console_id`) REFERENCES `rental_consoles` (`rental_console_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `rental_ratings`
+--
+ALTER TABLE `rental_ratings`
+  ADD CONSTRAINT `fk_rating_rental` FOREIGN KEY (`rental_id`) REFERENCES `rentals` (`rental_id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `rental_schedules`
 --
-`rental_schedules`
-`fk_schedules_rental` (`rental_id`) REFERENCES `rentals` (`rental_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `rental_schedules`
+  ADD CONSTRAINT `fk_schedules_rental` FOREIGN KEY (`rental_id`) REFERENCES `rentals` (`rental_id`) ON DELETE CASCADE ON UPDATE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

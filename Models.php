@@ -239,11 +239,13 @@ class Rental extends BaseModel {
         $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
     public function getDetailById($rental_id) {
         $stmt = $this->pdo->prepare("
             SELECT
                 r.rental_id,
                 r.rental_name,
+                r.status_toko,
                 r.catatan,
                 o.name AS owner_name,
                 o.phone,
@@ -559,32 +561,6 @@ class Game extends BaseModel {
 }
 
 
-// Child class: RatingTempat (Inheritance dari BaseModel)
-class rating_tempat extends BaseModel {
-    public function __construct($pdo_connect) {
-        parent::__construct($pdo_connect, 'Rating Tempat');
-    }
-
-    public function getRating($rental_id) {
-        $stmt = $this->pdo->prepare("SELECT AVG(rating) as avg_rating, COUNT(*) as total_reviews FROM rental_ratings WHERE rental_id = ?");
-        $stmt->execute([$rental_id]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
-    }
-
-    // Override wajib dari BaseModel (Polymorphism)
-    public function getRingkasan($rental_id) {
-        $ratingData   = $this->getRating($rental_id);
-        $totalReviews = (int)($ratingData['total_reviews'] ?? 0);
-
-        if ($totalReviews === 0) {
-            return "Belum ada ulasan.";
-        }
-
-        $avgRating = round((float)$ratingData['avg_rating'], 1);
-        return "Rating rata-rata: {$avgRating} dari {$totalReviews} ulasan.";
-    }
-}
-
 // Child class: Admin (Inheritance dari BaseModel)
 class Admin extends BaseModel {
     public function __construct($pdo_connect) {
@@ -594,7 +570,9 @@ class Admin extends BaseModel {
     public function getSemuaRental() {
         $stmt = $this->pdo->query("
             SELECT r.rental_id, r.rental_name, r.status_toko,
-                   o.name AS owner_name, o.email AS owner_email, l.address
+                   o.name AS owner_name, o.email AS owner_email, l.address,
+                   (SELECT ROUND(AVG(rt.rating), 1) FROM rental_ratings rt WHERE rt.rental_id = r.rental_id) AS avg_rating,
+                   (SELECT COUNT(*) FROM rental_ratings rt2 WHERE rt2.rental_id = r.rental_id) AS total_reviews
             FROM rentals r
             JOIN owners o ON r.owner_id = o.owner_id
             LEFT JOIN locations l ON r.rental_id = l.rental_id
@@ -603,11 +581,31 @@ class Admin extends BaseModel {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    public function getSemuaUlasan() {
+        $stmt = $this->pdo->query("
+            SELECT rt.rating_id, rt.reviewer_name, rt.rating, rt.review_text, rt.created_at,
+                   r.rental_id, r.rental_name
+            FROM rental_ratings rt
+            JOIN rentals r ON rt.rental_id = r.rental_id
+            ORDER BY rt.created_at DESC, rt.rating_id DESC
+        ");
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function hapusUlasan($rating_id) {
+        try {
+            $stmt = $this->pdo->prepare("DELETE FROM rental_ratings WHERE rating_id = ?");
+            $stmt->execute([$rating_id]);
+            return "<p style='color: #16a34a;'>Ulasan berhasil dihapus.</p>";
+        } catch (PDOException $e) {
+            return "<p style='color: #dc2626;'>Gagal menghapus ulasan: " . $e->getMessage() . "</p>";
+        }
+    }
+
     public function hapusRental($rental_id) {
         try {
             $this->pdo->beginTransaction();
 
-            // Hapus data turunan terlebih dahulu agar aman dari foreign key constraint
             $this->pdo->prepare("
                 DELETE rr FROM rental_rates rr
                 JOIN rental_consoles rc ON rr.rental_console_id = rc.rental_console_id
@@ -623,6 +621,7 @@ class Admin extends BaseModel {
             $this->pdo->prepare("DELETE FROM rental_consoles WHERE rental_id = ?")->execute([$rental_id]);
             $this->pdo->prepare("DELETE FROM rental_schedules WHERE rental_id = ?")->execute([$rental_id]);
             $this->pdo->prepare("DELETE FROM rental_photos WHERE rental_id = ?")->execute([$rental_id]);
+            $this->pdo->prepare("DELETE FROM rental_ratings WHERE rental_id = ?")->execute([$rental_id]);
             $this->pdo->prepare("DELETE FROM locations WHERE rental_id = ?")->execute([$rental_id]);
             $this->pdo->prepare("DELETE FROM rentals WHERE rental_id = ?")->execute([$rental_id]);
 
@@ -640,6 +639,74 @@ class Admin extends BaseModel {
     public function getRingkasan($id = 0) {
         $totalOwner  = (int) $this->pdo->query("SELECT COUNT(*) FROM owners WHERE role = 'owner'")->fetchColumn();
         $totalRental = (int) $this->pdo->query("SELECT COUNT(*) FROM rentals")->fetchColumn();
-        return "Total {$totalRental} tempat rental terdaftar dari {$totalOwner} akun owner.";
+        $totalUlasan = (int) $this->pdo->query("SELECT COUNT(*) FROM rental_ratings")->fetchColumn();
+        return "Total {$totalRental} tempat rental terdaftar dari {$totalOwner} akun owner, dengan {$totalUlasan} ulasan pengunjung.";
+    }
+}
+
+
+// Child class: RatingTempat (Inheritance dari BaseModel)
+class rating_tempat extends BaseModel {
+    public function __construct($pdo_connect) {
+        parent::__construct($pdo_connect, 'Rating Tempat');
+    }
+
+    public function getRating($rental_id) {
+        $stmt = $this->pdo->prepare("
+            SELECT AVG(rating) AS avg_rating, COUNT(*) AS total_reviews
+            FROM rental_ratings
+            WHERE rental_id = ?
+        ");
+        $stmt->execute([$rental_id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function getDaftarUlasan($rental_id) {
+        $stmt = $this->pdo->prepare("
+            SELECT rating_id, reviewer_name, rating, review_text, created_at
+            FROM rental_ratings
+            WHERE rental_id = ?
+            ORDER BY created_at DESC, rating_id DESC
+        ");
+        $stmt->execute([$rental_id]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function tambahRating($rental_id, $reviewer_name, $rating, $review_text = '') {
+        $reviewer_name = trim($reviewer_name);
+        $review_text   = trim($review_text);
+        $rating        = (int)$rating;
+
+        if ($reviewer_name === '') {
+            throw new Exception("Nama pengulas tidak boleh kosong.");
+        }
+        if ($rating < 1 || $rating > 5) {
+            throw new Exception("Rating harus bernilai antara 1 sampai 5.");
+        }
+
+        $stmt = $this->pdo->prepare("
+            INSERT INTO rental_ratings (rental_id, reviewer_name, rating, review_text)
+            VALUES (?, ?, ?, ?)
+        ");
+        $stmt->execute([
+            $rental_id,
+            $reviewer_name,
+            $rating,
+            $review_text !== '' ? $review_text : null
+        ]);
+        return true;
+    }
+
+    // Override wajib dari BaseModel (Polymorphism)
+    public function getRingkasan($rental_id) {
+        $ratingData   = $this->getRating($rental_id);
+        $totalReviews = (int)($ratingData['total_reviews'] ?? 0);
+
+        if ($totalReviews === 0) {
+            return "Belum ada ulasan.";
+        }
+
+        $avgRating = round((float)$ratingData['avg_rating'], 1);
+        return "Rating rata-rata: {$avgRating} / 5 dari {$totalReviews} ulasan.";
     }
 }
