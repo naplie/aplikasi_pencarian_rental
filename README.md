@@ -12,7 +12,7 @@ Navigasi rute langsung ke tempat rental dengan google map direction URL
 Teknologi yang digunakan:
 PHP, MYSQL, BOOTSTRAP, leaflet.js, openstreetmap
 
-cara instalasi lokal XAMMPP
+cara instalasi lokal XAMPP
  1. clone repositori ini ke folder htdocs
  2. buka http://localhost/phpmyadmin
  3. buat data base baru lalu import file rental_console.sql
