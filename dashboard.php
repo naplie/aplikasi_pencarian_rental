@@ -3,6 +3,21 @@ session_start();
 require_once 'koneksi.php';
 require_once 'Models.php';
 
+<?php
+session_start();
+require_once 'koneksi.php';
+require_once 'Models.php';
+
+if (!isset($_SESSION['owner_id'])) {
+    header("Location: login.php");
+    exit;
+}
+
+if (($_SESSION['role'] ?? 'owner') === 'admin') {
+    header("Location: admin.php");
+    exit;
+}
+
 if (!isset($_SESSION['owner_id'])) {
     header("Location: login.php");
     exit;
